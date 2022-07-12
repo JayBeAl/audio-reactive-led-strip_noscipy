@@ -2,11 +2,11 @@ from __future__ import print_function
 from __future__ import division
 import time
 import numpy as np
-from scipy.ndimage.filters import gaussian_filter1d
 import config
 import microphone
 import dsp
 import led
+from math import pi, sqrt, exp
 
 _time_prev = time.time() * 1000.0
 """The previous time that the frames_per_second() function was called"""
@@ -14,6 +14,9 @@ _time_prev = time.time() * 1000.0
 _fps = dsp.ExpFilter(val=config.FPS, alpha_decay=0.2, alpha_rise=0.2)
 """The low-pass filter used to estimate frames-per-second"""
 
+def gauss(n=11,sigma=1):
+    r = range(-int(n/2),int(n/2)+1)
+    return [1 / (sigma * sqrt(2*pi)) * exp(-float(x)**2/(2*sigma**2)) for x in r]
 
 def frames_per_second():
     """Return the estimated frames per second
@@ -115,7 +118,7 @@ def visualize_scroll(y):
     # Scrolling effect window
     p[:, 1:] = p[:, :-1]
     p *= 0.98
-    p = gaussian_filter1d(p, sigma=0.2)
+    p = gauss(p, sigma=0.2)
     # Create new color originating at the center
     p[0, 0] = r
     p[1, 0] = g
@@ -147,9 +150,9 @@ def visualize_energy(y):
     p_filt.update(p)
     p = np.round(p_filt.value)
     # Apply substantial blur to smooth the edges
-    p[0, :] = gaussian_filter1d(p[0, :], sigma=4.0)
-    p[1, :] = gaussian_filter1d(p[1, :], sigma=4.0)
-    p[2, :] = gaussian_filter1d(p[2, :], sigma=4.0)
+    p[0, :] = gauss(p[0, :], sigma=4.0)
+    p[1, :] = gauss(p[1, :], sigma=4.0)
+    p[2, :] = gauss(p[2, :], sigma=4.0)
     # Set the new pixel value
     return np.concatenate((p[:, ::-1], p), axis=1)
 
@@ -217,7 +220,7 @@ def microphone_update(audio_samples):
         mel = np.sum(mel, axis=0)
         mel = mel**2.0
         # Gain normalization
-        mel_gain.update(np.max(gaussian_filter1d(mel, sigma=1.0)))
+        mel_gain.update(np.max(gauss(mel, sigma=1.0)))
         mel /= mel_gain.value
         mel = mel_smoothing.update(mel)
         # Map filterbank output onto LED strip
